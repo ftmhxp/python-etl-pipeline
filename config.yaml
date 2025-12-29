@@ -1,0 +1,89 @@
+# COVID-19 ETL Pipeline Configuration
+project:
+  name: "COVID-19 Global Data ETL Pipeline"
+  version: "1.0.0"
+  description: "ETL pipeline for COVID-19 data analysis and prediction"
+
+# Data Sources
+data_sources:
+  # Johns Hopkins University COVID-19 Data
+  jhu:
+    base_url: "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series"
+    files:
+      - name: "confirmed_global"
+        filename: "time_series_covid19_confirmed_global.csv"
+        description: "Global confirmed COVID-19 cases"
+      - name: "deaths_global"
+        filename: "time_series_covid19_deaths_global.csv"
+        description: "Global COVID-19 deaths"
+      - name: "recovered_global"
+        filename: "time_series_covid19_recovered_global.csv"
+        description: "Global COVID-19 recoveries"
+
+  # Our World in Data
+  owid:
+    base_url: "https://covid.ourworldindata.org/data"
+    files:
+      - name: "owid_covid_data"
+        filename: "owid-covid-data.csv"
+        description: "Comprehensive COVID-19 dataset with vaccinations and tests"
+
+  # WHO COVID-19 Global Data
+  who:
+    base_url: "https://covid19.who.int"
+    api_endpoint: "https://covid19.who.int/WHO-COVID-19-global-data.csv"
+    description: "WHO global COVID-19 data"
+
+# Local Data Paths (relative to project root)
+data_paths:
+  raw: "data/raw"
+  processed: "data/processed"
+  output: "data/output"
+
+# Database Configuration
+database:
+  type: "postgresql"  # or "sqlite" for local development
+  host: "localhost"
+  port: 5432
+  database: "covid_etl"
+  schema: "public"
+  # These will be loaded from environment variables
+  # username: ${DB_USER}
+  # password: ${DB_PASSWORD}
+
+# ETL Pipeline Settings
+pipeline:
+  extract:
+    retry_attempts: 3
+    retry_delay: 5  # seconds
+    timeout: 30  # seconds
+
+  transform:
+    # Data quality thresholds
+    missing_data_threshold: 0.5  # Remove columns with >50% missing data
+    outlier_method: "tukey"  # tukey, zscore, or isolation_forest
+
+    # Feature engineering
+    features:
+      - "cases_per_million"
+      - "deaths_per_million"
+      - "mortality_rate"
+      - "recovery_rate"
+      - "doubling_time"
+
+  load:
+    batch_size: 1000
+    if_exists: "replace"  # replace, append, or fail
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/etl_pipeline.log"
+
+# Analysis Settings
+analysis:
+  target_countries: ["United States", "China", "India", "Brazil", "Russia"]
+  date_range:
+    start: "2020-01-01"
+    end: "2023-12-31"
