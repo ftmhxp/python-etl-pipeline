@@ -2,8 +2,9 @@
 Data extraction module for COVID-19 ETL pipeline.
 """
 
+from .base_extractor import BaseExtractor
 from .csv_extractor import CSVExtractor
 from .api_extractor import APIExtractor
-from .json_extractor import JSONExtractor
+from .extractor_orchestrator import ExtractorOrchestrator
 
-__all__ = ["CSVExtractor", "APIExtractor", "JSONExtractor"]
+__all__ = ["BaseExtractor", "CSVExtractor", "APIExtractor", "ExtractorOrchestrator"]

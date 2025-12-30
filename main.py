@@ -12,6 +12,7 @@ from pathlib import Path
 from src.config import config
 
 
+
 def setup_logging():
     """Configure logging for the application."""
     log_config = config.get('logging', {})
@@ -36,11 +37,57 @@ def cli():
 @cli.command()
 @click.option('--config', 'config_file', default='config.yaml',
               help='Path to configuration file')
-def extract(config_file):
+@click.option('--parallel/--sequential', default=True,
+              help='Run extraction in parallel or sequentially')
+@click.option('--max-workers', default=3, type=int,
+              help='Maximum number of parallel workers')
+def extract(config_file, parallel, max_workers):
     """Run the extract phase of the ETL pipeline."""
-    click.echo("🚀 Starting data extraction...")
-    # TODO: Implement extract logic
-    click.echo("✅ Data extraction completed!")
+    click.echo("Starting data extraction...")
+
+    try:
+        # Import here to avoid circular imports
+        from src.extract import ExtractorOrchestrator
+
+        # Create and run orchestrator
+        orchestrator = ExtractorOrchestrator()
+        results = orchestrator.run_extraction(parallel=parallel, max_workers=max_workers)
+
+        # Display results
+        click.echo("\nExtraction Summary:")
+        click.echo(f"  Total sources: {results['total_sources']}")
+        click.echo(f"  Successful: {results['successful_sources']}")
+        click.echo(f"  Failed: {results['failed_sources']}")
+        click.echo(f"  Files downloaded: {results['total_files_downloaded']}")
+        click.echo(f"  Valid files: {results['valid_files']}")
+        click.echo(f"  Duration: {results['total_duration_seconds']:.2f} seconds")
+
+        # Show detailed results for each source
+        click.echo("\nSource Details:")
+        for result in results['results']:
+            status_icon = "[SUCCESS]" if result['status'] == 'success' else "[FAILED]"
+            source_name = result['source']
+            status = result['status']
+
+            if status == 'success':
+                files = result.get('total_files', 0)
+                valid = result.get('valid_files', 0)
+                click.echo(f"  {status_icon} {source_name}: {files} files ({valid} valid)")
+            else:
+                error = result.get('error', 'Unknown error')
+                click.echo(f"  {status_icon} {source_name}: Failed - {error}")
+
+        if results['overall_status'] == 'success':
+            click.echo("\nData extraction completed successfully!")
+        elif results['overall_status'] == 'partial_success':
+            click.echo("\nData extraction completed with some failures!")
+        else:
+            click.echo("\nData extraction failed!")
+            raise click.ClickException("Extraction failed")
+
+    except Exception as e:
+        click.echo(f"Data extraction failed: {e}")
+        raise click.ClickException(f"Extraction error: {e}")
 
 
 @cli.command()
