@@ -95,11 +95,75 @@ def extract(config_file, parallel, max_workers):
               help='Input directory for raw data (overrides config)')
 @click.option('--output-dir', default=None,
               help='Output directory for processed data (overrides config)')
-def transform(input_dir, output_dir):
+@click.option('--input-files', multiple=True,
+              help='Specific input files to transform (can be specified multiple times)')
+@click.option('--transform-order', default=None,
+              help='Comma-separated list of transformations to apply (cleaner,feature_engineer,validator)')
+def transform(input_dir, output_dir, input_files, transform_order):
     """Run the transform phase of the ETL pipeline."""
     click.echo("🔄 Starting data transformation...")
-    # TODO: Implement transform logic
-    click.echo("✅ Data transformation completed!")
+
+    try:
+        # Import here to avoid circular imports
+        from src.transform import TransformerOrchestrator
+
+        # Parse transform order if provided
+        transform_list = None
+        if transform_order:
+            transform_list = [t.strip() for t in transform_order.split(',')]
+
+        # Prepare input files
+        input_file_list = list(input_files) if input_files else None
+
+        # Override config directories if specified
+        if input_dir:
+            import os
+            os.environ['INPUT_DIR'] = input_dir
+        if output_dir:
+            import os
+            os.environ['OUTPUT_DIR'] = output_dir
+
+        # Create and run orchestrator
+        orchestrator = TransformerOrchestrator()
+        results = orchestrator.run_transformation(
+            input_files=input_file_list,
+            output_dir=output_dir,
+            transform_order=transform_list
+        )
+
+        # Display results
+        click.echo("\nTransformation Summary:")
+        click.echo(f"  Status: {results['status']}")
+        click.echo(f"  Duration: {results['total_duration_seconds']:.2f} seconds")
+        click.echo(f"  Files processed: {results['total_input_files']}")
+        click.echo(f"  Total rows: {results['total_input_rows']} -> {results['total_output_rows']}")
+        click.echo(f"  Transformations: {', '.join(results['transformations_applied'])}")
+
+        # Show per-file results
+        click.echo("\nFile Details:")
+        for file_result in results['file_results']:
+            status_icon = "[SUCCESS]" if file_result['status'] == 'success' else "[PARTIAL]"
+            input_name = file_result['input_file'].split('/')[-1].split('\\')[-1]
+            rows_info = f"{file_result['original_rows']} -> {file_result['final_rows']} rows"
+            click.echo(f"  {status_icon} {input_name}: {rows_info}")
+
+            # Show transformation steps
+            for step in file_result['transformations']:
+                step_status = "✓" if step['status'] == 'success' else "✗"
+                step_info = f"{step['transformer']}: {step['input_rows']} -> {step['output_rows']}"
+                click.echo(f"    {step_status} {step_info}")
+
+        if results['status'] == 'success':
+            click.echo("\n✅ Data transformation completed successfully!")
+        elif results['status'] == 'partial_success':
+            click.echo("\n⚠️  Data transformation completed with some issues!")
+        else:
+            click.echo("\n❌ Data transformation failed!")
+            raise click.ClickException("Transformation failed")
+
+    except Exception as e:
+        click.echo(f"❌ Data transformation failed: {e}")
+        raise click.ClickException(f"Transformation error: {e}")
 
 
 @cli.command()
