@@ -169,11 +169,90 @@ def transform(input_dir, output_dir, input_files, transform_order):
 @cli.command()
 @click.option('--input-dir', default=None,
               help='Input directory for processed data (overrides config)')
-def load(input_dir):
+@click.option('--create-tables/--no-create-tables', default=True,
+              help='Create database tables if they don\'t exist')
+@click.option('--create-indexes/--no-create-indexes', default=True,
+              help='Create database indexes')
+@click.option('--create-constraints/--no-create-constraints', default=True,
+              help='Create foreign key constraints')
+@click.option('--data-files', multiple=True,
+              help='Specific data files to load (table_name=file_path format, can be specified multiple times)')
+def load(input_dir, create_tables, create_indexes, create_constraints, data_files):
     """Run the load phase of the ETL pipeline."""
     click.echo("💾 Starting data loading...")
-    # TODO: Implement load logic
-    click.echo("✅ Data loading completed!")
+
+    try:
+        # Import here to avoid circular imports
+        from src.load import LoaderOrchestrator
+
+        # Parse data files mapping
+        data_files_dict = {}
+        if data_files:
+            for data_file in data_files:
+                if '=' in data_file:
+                    table_name, file_path = data_file.split('=', 1)
+                    data_files_dict[table_name.strip()] = file_path.strip()
+                else:
+                    click.echo(f"Warning: Invalid data file format '{data_file}'. Use 'table_name=file_path'")
+
+        # Override config directory if specified
+        if input_dir:
+            import os
+            os.environ['PROCESSED_DATA_DIR'] = input_dir
+
+        # Create and run orchestrator
+        orchestrator = LoaderOrchestrator()
+        results = orchestrator.run_loading_pipeline(
+            data_files=data_files_dict if data_files_dict else None,
+            create_tables=create_tables,
+            create_indexes=create_indexes,
+            create_constraints=create_constraints
+        )
+
+        # Display results
+        click.echo("\nLoading Summary:")
+        click.echo(f"  Status: {results['status']}")
+        click.echo(f"  Duration: {results['total_duration_seconds']:.2f} seconds")
+        click.echo(f"  Total rows loaded: {results['total_rows_loaded']}")
+
+        # Show table creation results
+        table_result = results.get('table_creation', {})
+        if table_result.get('status') != 'skipped':
+            click.echo(f"  Tables processed: {table_result.get('tables_processed', 0)}")
+
+        # Show index creation results
+        index_result = results.get('index_creation', {})
+        if index_result.get('status') != 'skipped':
+            click.echo(f"  Indexes processed: {index_result.get('indexes_processed', 0)}")
+
+        # Show constraint creation results
+        constraint_result = results.get('constraint_creation', {})
+        if constraint_result.get('status') != 'skipped':
+            click.echo(f"  Constraints processed: {constraint_result.get('constraints_processed', 0)}")
+
+        # Show data loading results
+        loading_results = results.get('data_loading', [])
+        click.echo("\nData Loading Details:")
+        for loading_result in loading_results:
+            table = loading_result['table']
+            result = loading_result['result']
+            status = result.get('status', 'unknown')
+            rows = result.get('rows_loaded', 0)
+
+            status_icon = "✅" if status == 'success' else "⚠️" if status == 'partial_success' else "❌"
+            click.echo(f"  {status_icon} {table}: {rows} rows ({status})")
+
+        if results['status'] == 'success':
+            click.echo("\n✅ Data loading completed successfully!")
+        elif results['status'] == 'partial_success':
+            click.echo("\n⚠️  Data loading completed with some issues!")
+        else:
+            click.echo("\n❌ Data loading failed!")
+            raise click.ClickException("Loading failed")
+
+    except Exception as e:
+        click.echo(f"❌ Data loading failed: {e}")
+        raise click.ClickException(f"Loading error: {e}")
 
 
 @cli.command()
