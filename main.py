@@ -15,12 +15,20 @@ from src.config import config
 
 def setup_logging():
     """Configure logging for the application."""
+    import os
     log_config = config.get('logging', {})
+
+    # Ensure logs directory exists
+    log_file = log_config.get('file', 'logs/etl_pipeline.log')
+    log_dir = os.path.dirname(log_file)
+    if log_dir and not os.path.exists(log_dir):
+        os.makedirs(log_dir, exist_ok=True)
+
     logging.basicConfig(
         level=getattr(logging, log_config.get('level', 'INFO')),
         format=log_config.get('format', '%(asctime)s - %(name)s - %(levelname)s - %(message)s'),
         handlers=[
-            logging.FileHandler(log_config.get('file', 'logs/etl_pipeline.log')),
+            logging.FileHandler(log_file),
             logging.StreamHandler()
         ]
     )
@@ -101,7 +109,7 @@ def extract(config_file, parallel, max_workers):
               help='Comma-separated list of transformations to apply (cleaner,feature_engineer,validator)')
 def transform(input_dir, output_dir, input_files, transform_order):
     """Run the transform phase of the ETL pipeline."""
-    click.echo("🔄 Starting data transformation...")
+    click.echo("Starting data transformation...")
 
     try:
         # Import here to avoid circular imports
@@ -149,20 +157,20 @@ def transform(input_dir, output_dir, input_files, transform_order):
 
             # Show transformation steps
             for step in file_result['transformations']:
-                step_status = "✓" if step['status'] == 'success' else "✗"
+                step_status = "[OK]" if step['status'] == 'success' else "[FAIL]"
                 step_info = f"{step['transformer']}: {step['input_rows']} -> {step['output_rows']}"
                 click.echo(f"    {step_status} {step_info}")
 
         if results['status'] == 'success':
-            click.echo("\n✅ Data transformation completed successfully!")
+            click.echo("\nData transformation completed successfully!")
         elif results['status'] == 'partial_success':
-            click.echo("\n⚠️  Data transformation completed with some issues!")
+            click.echo("\nData transformation completed with some issues!")
         else:
-            click.echo("\n❌ Data transformation failed!")
+            click.echo("\nData transformation failed!")
             raise click.ClickException("Transformation failed")
 
     except Exception as e:
-        click.echo(f"❌ Data transformation failed: {e}")
+        click.echo(f"Data transformation failed: {e}")
         raise click.ClickException(f"Transformation error: {e}")
 
 
@@ -179,7 +187,7 @@ def transform(input_dir, output_dir, input_files, transform_order):
               help='Specific data files to load (table_name=file_path format, can be specified multiple times)')
 def load(input_dir, create_tables, create_indexes, create_constraints, data_files):
     """Run the load phase of the ETL pipeline."""
-    click.echo("💾 Starting data loading...")
+    click.echo("Starting data loading...")
 
     try:
         # Import here to avoid circular imports
@@ -239,19 +247,19 @@ def load(input_dir, create_tables, create_indexes, create_constraints, data_file
             status = result.get('status', 'unknown')
             rows = result.get('rows_loaded', 0)
 
-            status_icon = "✅" if status == 'success' else "⚠️" if status == 'partial_success' else "❌"
+            status_icon = "[SUCCESS]" if status == 'success' else "[WARNING]" if status == 'partial_success' else "[FAILED]"
             click.echo(f"  {status_icon} {table}: {rows} rows ({status})")
 
         if results['status'] == 'success':
-            click.echo("\n✅ Data loading completed successfully!")
+            click.echo("\nData loading completed successfully!")
         elif results['status'] == 'partial_success':
-            click.echo("\n⚠️  Data loading completed with some issues!")
+            click.echo("\nData loading completed with some issues!")
         else:
-            click.echo("\n❌ Data loading failed!")
+            click.echo("\nData loading failed!")
             raise click.ClickException("Loading failed")
 
     except Exception as e:
-        click.echo(f"❌ Data loading failed: {e}")
+        click.echo(f"Data loading failed: {e}")
         raise click.ClickException(f"Loading error: {e}")
 
 
@@ -261,37 +269,37 @@ def load(input_dir, create_tables, create_indexes, create_constraints, data_file
 @click.option('--skip-load', is_flag=True, help='Skip loading phase')
 def run(skip_extract, skip_transform, skip_load):
     """Run the complete ETL pipeline."""
-    click.echo("🚀 Starting complete ETL pipeline...")
+    click.echo("Starting complete ETL pipeline...")
 
     if not skip_extract:
-        click.echo("📥 Phase 1: Extraction")
+        click.echo("Phase 1: Extraction")
         # TODO: Run extract
 
     if not skip_transform:
-        click.echo("🔄 Phase 2: Transformation")
+        click.echo("Phase 2: Transformation")
         # TODO: Run transform
 
     if not skip_load:
-        click.echo("💾 Phase 3: Loading")
+        click.echo("Phase 3: Loading")
         # TODO: Run load
 
-    click.echo("🎉 ETL pipeline completed successfully!")
+    click.echo("ETL pipeline completed successfully!")
 
 
 @cli.command()
 def validate():
     """Validate data quality and pipeline configuration."""
-    click.echo("🔍 Validating pipeline configuration and data...")
+    click.echo("Validating pipeline configuration and data...")
     # TODO: Implement validation logic
-    click.echo("✅ Validation completed!")
+    click.echo("Validation completed!")
 
 
 @cli.command()
 def analyze():
     """Run data analysis and generate reports."""
-    click.echo("📊 Running data analysis...")
+    click.echo("Running data analysis...")
     # TODO: Implement analysis logic
-    click.echo("✅ Analysis completed!")
+    click.echo("Analysis completed!")
 
 
 if __name__ == '__main__':
