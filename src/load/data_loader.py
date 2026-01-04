@@ -28,6 +28,10 @@ class COVIDDataLoader:
         # Country code mapping for standardization
         self.country_code_mapping = self._load_country_code_mapping()
 
+        # Inherit validation method from BaseLoader
+        from .base_loader import BaseLoader
+        self._validate_data = BaseLoader._validate_data.__get__(self, COVIDDataLoader)
+
     def _load_country_code_mapping(self) -> Dict[str, str]:
         """Load country name to ISO code mapping.
 
@@ -495,8 +499,13 @@ class COVIDDataLoader:
         processed_df = processed_df.rename(columns=column_mapping)
 
         # Ensure country_code exists
-        if 'country_code' not in processed_df.columns and 'country_name' in processed_df.columns:
-            processed_df['country_code'] = processed_df['country_name'].map(self.country_code_mapping)
+        if 'country_code' not in processed_df.columns:
+            if 'iso_code' in processed_df.columns:
+                # OWID data uses iso_code
+                processed_df['country_code'] = processed_df['iso_code']
+            elif 'country_name' in processed_df.columns:
+                # Fallback to mapping from country name
+                processed_df['country_code'] = processed_df['country_name'].map(self.country_code_mapping)
 
         # Convert date column
         if 'date' in processed_df.columns:

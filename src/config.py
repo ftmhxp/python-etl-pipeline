@@ -70,6 +70,12 @@ class Config:
         """Get database connection URL."""
         db_config = self.get('database', {})
 
+        # Check if full connection string is provided
+        connection_string = db_config.get('connection_string')
+        if connection_string:
+            return connection_string
+
+        # Fallback to individual parameters
         if db_config.get('type') == 'postgresql':
             return (f"postgresql://{db_config.get('username')}:{db_config.get('password')}@"
                    f"{db_config.get('host')}:{db_config.get('port')}/{db_config.get('database')}")

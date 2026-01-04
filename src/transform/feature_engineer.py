@@ -8,6 +8,7 @@ from typing import Dict, Any, List, Optional
 import math
 
 from .base_transformer import BaseTransformer
+from ..config import config
 
 
 class FeatureEngineer(BaseTransformer):

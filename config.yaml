@@ -43,11 +43,14 @@ data_paths:
 # Database Configuration
 database:
   type: "postgresql"  # or "sqlite" for local development
-  host: "db.bpwlcvobnsdvbwseacbg.supabase.co"
-  port: 5432
-  database: "postgres"
+  # Transaction Pooler Connection (recommended for production)
+  connection_string: "postgresql://postgres.bpwlcvobnsdvbwseacbg:MXF8ra2sSFfDfmfI@aws-1-eu-west-3.pooler.supabase.com:6543/postgres"
   schema: "public"
-  # These will be loaded from environment variables
+
+  # Alternative: Individual connection parameters (for direct database access)
+  # host: "db.bpwlcvobnsdvbwseacbg.supabase.co"
+  # port: 5432
+  # database: "postgres"
   # username: ${DB_USER}
   # password: ${DB_PASSWORD}
 

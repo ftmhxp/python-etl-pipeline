@@ -28,8 +28,12 @@ class SQLLoader(BaseLoader):
         """
         super().__init__(config)
 
-        # Database configuration
-        self.db_config = config or config.get('database', {})
+        # Database configuration - use provided config or get from global config
+        if config is None:
+            from ..config import config as global_config
+            self.db_config = global_config.get('database', {})
+        else:
+            self.db_config = config
         self.engine = None
         self.connection_string = self._build_connection_string()
 
@@ -42,13 +46,19 @@ class SQLLoader(BaseLoader):
         Returns:
             Database connection string
         """
+        # Check if full connection string is provided (for transaction pooler)
+        connection_string = self.db_config.get('connection_string')
+        if connection_string:
+            self.logger.info("Using full connection string from configuration")
+            return connection_string
+
+        # Fallback to individual parameters
         db_type = self.db_config.get('type', 'postgresql')
         username = self.db_config.get('username', '')
         password = self.db_config.get('password', '')
         host = self.db_config.get('host', 'localhost')
         port = self.db_config.get('port', 5432)
         database = self.db_config.get('database', 'postgres')
-        schema = self.db_config.get('schema', 'public')
 
         if db_type == 'postgresql':
             return f"postgresql://{username}:{password}@{host}:{port}/{database}"
