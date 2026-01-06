@@ -178,3 +178,7 @@ data/output/
 # Logs
 logs/
 *.log
+
+# Configuration file
+config.yaml
+setup.py
