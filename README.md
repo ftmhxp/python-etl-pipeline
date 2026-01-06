@@ -1,9 +1,5 @@
 # COVID-19 Global Data ETL Pipeline
 
-[![Python Version](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code Style: Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-
 A comprehensive ETL (Extract, Transform, Load) pipeline for COVID-19 data analysis and prediction. This project demonstrates advanced data engineering skills by building a robust pipeline that handles multiple data sources, complex transformations, and database loading.
 
 ## Project Overview
@@ -46,32 +42,14 @@ etl-covid19-portfolio/
 └── requirements.txt          # Python dependencies
 ```
 
-## Quick Start
 
-### 1. Prerequisites
+### Prerequisites
 
 - Python 3.8+
 - PostgreSQL database (Supabase)
 - Git
 
-### 2. Clone and Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/ftmhxp/python-etl-pipeline.git
-cd python-etl-pipeline
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Download Data Files
-
-Download the following files and place them in the `data/raw/` directory:
+### Data Files
 
 1. **Johns Hopkins Data** (from GitHub):
    - `time_series_covid19_confirmed_global.csv`
@@ -84,56 +62,6 @@ Download the following files and place them in the `data/raw/` directory:
 3. **WHO Data**:
    - `WHO-COVID-19-global-data.csv`
 
-### 4. Database Setup
-
-#### Option A: Supabase (Recommended)
-
-1. Go to [supabase.com](https://supabase.com) and create a free account
-2. Create a new project
-3. Go to Settings → Database → Connection string
-4. Copy your connection details
-
-#### Option B: Local PostgreSQL
-
-```bash
-# Using Docker
-docker run --name postgres-etl -e POSTGRES_PASSWORD=mypassword \
-  -e POSTGRES_DB=covid_etl -p 5432:5432 -d postgres:13
-```
-
-### 5. Configuration
-
-Create a `.env` file in the project root:
-
-```bash
-# Database credentials
-DB_USER=your_supabase_user
-DB_PASSWORD=your_supabase_password
-DB_HOST=db.your-project-ref.supabase.co
-DB_PORT=5432
-DB_NAME=postgres
-
-# Optional: API keys for additional data sources
-# WHO_API_KEY=your_api_key_here
-```
-
-### 6. Run the Pipeline
-
-```bash
-# Run complete ETL pipeline
-python main.py run
-
-# Or run individual phases
-python main.py extract
-python main.py transform
-python main.py load
-
-# Validate data quality
-python main.py validate
-
-# Generate analysis reports
-python main.py analyze
-```
 
 ## Pipeline Stages
 
@@ -194,64 +122,11 @@ CREATE TABLE vaccinations (
 );
 ```
 
-## Configuration
-
-The pipeline is highly configurable via `config.yaml`:
-
-```yaml
-database:
-  type: "postgresql"
-  host: "localhost"
-  port: 5432
-  database: "covid_etl"
-
-pipeline:
-  extract:
-    retry_attempts: 3
-    timeout: 30
-  transform:
-    missing_data_threshold: 0.5
-    outlier_method: "tukey"
-```
-
-## Analysis & Visualization
-
-Explore the data using the provided Jupyter notebooks:
-
-```bash
-# Install analysis dependencies
-pip install -r requirements.txt --extra analysis
-
-# Launch Jupyter
-jupyter notebook notebooks/
-```
-
-Available notebooks:
-- `01_data_exploration.ipynb` - Initial data analysis
-- `02_etl_pipeline_demo.ipynb` - Pipeline walkthrough
-- `03_predictive_modeling.ipynb` - ML model development
-
-## Testing
-
-Run the test suite:
-
-```bash
-# Install development dependencies
-pip install -e .[dev]
-
-# Run all tests
-pytest
-
-# Run with coverage
-pytest --cov=src --cov-report=html
-```
 
 ## Key Features Demonstrated
 
 - **Data Pipeline Orchestration**: Complete ETL workflow
-- **Error Handling**: Robust error handling and logging
 - **Data Quality**: Comprehensive validation and cleaning
 - **Scalability**: Handles large datasets efficiently
 - **Modularity**: Clean, maintainable code architecture
-- **Documentation**: Comprehensive documentation and examples
 - **Testing**: Unit and integration test coverage
