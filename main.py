@@ -302,5 +302,158 @@ def analyze():
     click.echo("Analysis completed!")
 
 
+# ---------------------------------------------------------------------------
+# Music pipeline CLI group
+# ---------------------------------------------------------------------------
+
+@cli.group()
+def music():
+    """Music data ETL pipeline - Billboard Hot 100 + Last.fm."""
+    pass
+
+
+@music.command('extract')
+@click.option(
+    '--source',
+    type=click.Choice(['all', 'billboard', 'lastfm'], case_sensitive=False),
+    default='all',
+    help='Which source to extract (default: all).',
+)
+def music_extract(source):
+    """Extract Billboard chart history and/or Last.fm track metadata."""
+    click.echo(f"Starting music extraction (source={source})...")
+
+    from src.extract.billboard_extractor import BillboardExtractor
+    from src.extract.lastfm_extractor import LastFmExtractor
+
+    results = []
+
+    if source in ('all', 'billboard'):
+        click.echo("  Fetching Billboard Hot 100 history...")
+        result = BillboardExtractor().run()
+        results.append(result)
+        if result['status'] == 'success':
+            click.echo(
+                f"  [OK] Billboard: {result.get('total_entries', 0):,} entries "
+                f"({result.get('total_weeks_fetched', 0)} weeks, "
+                f"{result.get('failed_weeks', 0)} failed)"
+            )
+        else:
+            click.echo(f"  [FAIL] Billboard: {result.get('error')}")
+
+    if source in ('all', 'lastfm'):
+        click.echo("  Fetching Last.fm track metadata...")
+        try:
+            result = LastFmExtractor().run()
+            results.append(result)
+            if result['status'] == 'success':
+                click.echo(
+                    f"  [OK] Last.fm: {result.get('found_on_lastfm', 0):,} tracks found "
+                    f"({result.get('not_found_on_lastfm', 0)} not found)"
+                )
+            else:
+                click.echo(f"  [FAIL] Last.fm: {result.get('error')}")
+        except ValueError as e:
+            click.echo(f"  [SKIP] Last.fm: {e}")
+
+    overall = 'success' if all(r.get('status') == 'success' for r in results) else 'partial'
+    click.echo(f"\nMusic extraction {overall}.")
+
+
+@music.command('transform')
+def music_transform():
+    """Clean and feature-engineer Billboard and Last.fm data."""
+    click.echo("Starting music transformation...")
+
+    from pathlib import Path
+    from src.transform.music_cleaner import MusicCleaner
+    from src.transform.music_feature_engineer import MusicFeatureEngineer
+    from src.config import config
+
+    raw_path = config.raw_data_path
+
+    billboard_file = raw_path / 'billboard_hot100.csv'
+    lastfm_file = raw_path / 'lastfm_track_data.csv'
+
+    input_files = []
+    if billboard_file.exists():
+        input_files.append(billboard_file)
+    else:
+        click.echo("  [WARN] billboard_hot100.csv not found — run 'music extract --source billboard' first")
+
+    if lastfm_file.exists():
+        input_files.append(lastfm_file)
+    else:
+        click.echo("  [WARN] lastfm_track_data.csv not found — run 'music extract --source lastfm' first")
+
+    if not input_files:
+        raise click.ClickException("No input files found. Run extraction first.")
+
+    for transformer_cls in (MusicCleaner, MusicFeatureEngineer):
+        transformer = transformer_cls()
+        result = transformer.run(input_files)
+        icon = "[OK]" if result['status'] == 'success' else "[FAIL]"
+        click.echo(
+            f"  {icon} {result['transform_name']}: "
+            f"{result.get('total_input_rows', 0):,} -> {result.get('total_output_rows', 0):,} rows "
+            f"({result['status']})"
+        )
+
+    click.echo("\nMusic transformation complete.")
+
+
+@music.command('load')
+@click.option('--create-tables/--no-create-tables', default=True,
+              help='Create music tables if they do not exist.')
+@click.option('--create-indexes/--no-create-indexes', default=True,
+              help='Create performance indexes.')
+def music_load(create_tables, create_indexes):
+    """Load processed music data into the database."""
+    click.echo("Starting music data load...")
+
+    from src.load.music_loader import MusicLoaderOrchestrator
+
+    orchestrator = MusicLoaderOrchestrator()
+    results = orchestrator.run_loading_pipeline(
+        create_tables=create_tables,
+        create_indexes=create_indexes,
+    )
+
+    click.echo(f"\nLoad Summary:")
+    click.echo(f"  Status:      {results['status']}")
+    click.echo(f"  Duration:    {results.get('total_duration_seconds', 0):.2f}s")
+    click.echo(f"  Rows loaded: {results.get('total_rows_loaded', 0):,}")
+
+    click.echo("\nTable Results:")
+    for entry in results.get('data_loading', []):
+        table = entry['table']
+        r = entry['result']
+        icon = "[OK]" if r.get('status') == 'success' else "[SKIP]" if r.get('status') == 'skipped' else "[FAIL]"
+        click.echo(f"  {icon} {table}: {r.get('rows_loaded', 0):,} rows")
+
+    if results['status'] != 'success':
+        raise click.ClickException(f"Load finished with status: {results['status']}")
+
+    click.echo("\nMusic data loaded successfully!")
+
+
+@music.command('run')
+@click.option(
+    '--source',
+    type=click.Choice(['all', 'billboard', 'lastfm'], case_sensitive=False),
+    default='all',
+)
+def music_run(source):
+    """Run the complete music ETL pipeline (extract -> transform -> load)."""
+    click.echo("Running complete music ETL pipeline...")
+
+    ctx = click.get_current_context()
+    ctx.invoke(music_extract, source=source)
+    ctx.invoke(music_transform)
+    ctx.invoke(music_load, create_tables=True, create_indexes=True)
+
+    click.echo("\nMusic ETL pipeline complete.")
+
+
 if __name__ == '__main__':
     cli()
