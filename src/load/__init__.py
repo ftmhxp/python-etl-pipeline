@@ -1,5 +1,5 @@
 """
-Data loading module for COVID-19 ETL pipeline.
+Data loading module.
 """
 
 from .base_loader import BaseLoader
@@ -9,6 +9,8 @@ from .sql_loader import SQLLoader
 from .data_loader import COVIDDataLoader
 from .loader_orchestrator import LoaderOrchestrator
 from .database_schema import COVID_SCHEMA, get_table_schema, get_all_table_names
+from .music_loader import MusicDataLoader, MusicLoaderOrchestrator
+from .music_schema import MUSIC_SCHEMA, get_music_table_schema, get_music_table_names
 
 __all__ = [
     "BaseLoader",
@@ -19,5 +21,10 @@ __all__ = [
     "LoaderOrchestrator",
     "COVID_SCHEMA",
     "get_table_schema",
-    "get_all_table_names"
+    "get_all_table_names",
+    "MusicDataLoader",
+    "MusicLoaderOrchestrator",
+    "MUSIC_SCHEMA",
+    "get_music_table_schema",
+    "get_music_table_names",
 ]
