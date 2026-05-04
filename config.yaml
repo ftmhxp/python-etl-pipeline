@@ -51,6 +51,20 @@ data_sources:
     billboard_input: "billboard_hot100.csv"
     output_file: "lastfm_track_data.csv"
 
+  # Kaggle — Spotify audio features dataset
+  kaggle_spotify:
+    dataset: "yamaerenay/spotify-dataset-19212020-600k-tracks"
+    source_filename: "tracks.csv"
+    output_file: "spotify_audio_features.csv"
+    api_key_env: "KAGGLE_KEY"
+
+  # Audio enrichment settings
+  audio_enricher:
+    spotify_file: "spotify_audio_features.csv"
+    match_threshold: 85        # minimum rapidfuzz score (0-100)
+    output_file: "music_enriched.csv"
+    final_export_file: "music_dataset_final.csv"
+
 # Local Data Paths (relative to project root)
 data_paths:
   raw: "data/raw"
@@ -60,16 +74,9 @@ data_paths:
 # Database Configuration
 database:
   type: "postgresql"  # or "sqlite" for local development
-  # Transaction Pooler Connection (recommended for production)
-  connection_string: "postgresql://postgres.bpwlcvobnsdvbwseacbg:MXF8ra2sSFfDfmfI@aws-1-eu-west-3.pooler.supabase.com:6543/postgres"
+  # Connection string is read from DATABASE_URL in .env — never hardcode credentials here
+  connection_string: "${DATABASE_URL}"
   schema: "public"
-
-  # Alternative: Individual connection parameters (for direct database access)
-  # host: "db.bpwlcvobnsdvbwseacbg.supabase.co"
-  # port: 5432
-  # database: "postgres"
-  # username: ${DB_USER}
-  # password: ${DB_PASSWORD}
 
 # ETL Pipeline Settings
 pipeline:
