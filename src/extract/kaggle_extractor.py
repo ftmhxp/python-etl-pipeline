@@ -32,13 +32,16 @@ class KaggleExtractor(BaseExtractor):
                 f"Kaggle API key not set. Add {api_key_env} to your .env file. "
                 "Get your key at kaggle.com -> Settings -> API -> Create Token."
             )
-        # Kaggle library reads KAGGLE_KEY from env automatically
+        # Kaggle library v2 requires both KAGGLE_USERNAME and KAGGLE_KEY in env
         os.environ['KAGGLE_KEY'] = api_key
+        username = os.environ.get('KAGGLE_USERNAME', '')
+        if username:
+            os.environ['KAGGLE_USERNAME'] = username
 
     def extract(self) -> Dict[str, Any]:
         # Import here so missing package gives a clear error at runtime
         try:
-            from kaggle.api.kaggle_api_extended import KaggleApiExtended
+            from kaggle import KaggleApi
         except ImportError:
             raise ImportError("Run: pip install kaggle>=1.6.0")
 
@@ -54,7 +57,7 @@ class KaggleExtractor(BaseExtractor):
 
         self.logger.info(f"Downloading Kaggle dataset: {self.dataset}")
 
-        api = KaggleApiExtended()
+        api = KaggleApi()
         api.authenticate()
 
         tmp_dir = self.raw_data_path / '_kaggle_tmp'
