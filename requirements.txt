@@ -32,6 +32,8 @@ tqdm>=4.65.0
 # Music pipeline
 billboard.py>=2.3.0
 pylast>=5.2.0
+kaggle>=1.6.0
+rapidfuzz>=3.0.0
 
 # Development
 jupyter>=1.0.0

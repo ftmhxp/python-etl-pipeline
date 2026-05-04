@@ -315,16 +315,17 @@ def music():
 @music.command('extract')
 @click.option(
     '--source',
-    type=click.Choice(['all', 'billboard', 'lastfm'], case_sensitive=False),
+    type=click.Choice(['all', 'billboard', 'lastfm', 'kaggle'], case_sensitive=False),
     default='all',
     help='Which source to extract (default: all).',
 )
 def music_extract(source):
-    """Extract Billboard chart history and/or Last.fm track metadata."""
+    """Extract Billboard chart history, Last.fm metadata, and/or Spotify Kaggle dataset."""
     click.echo(f"Starting music extraction (source={source})...")
 
     from src.extract.billboard_extractor import BillboardExtractor
     from src.extract.lastfm_extractor import LastFmExtractor
+    from src.extract.kaggle_extractor import KaggleExtractor
 
     results = []
 
@@ -355,6 +356,20 @@ def music_extract(source):
                 click.echo(f"  [FAIL] Last.fm: {result.get('error')}")
         except ValueError as e:
             click.echo(f"  [SKIP] Last.fm: {e}")
+
+    if source in ('all', 'kaggle'):
+        click.echo("  Downloading Spotify audio features from Kaggle...")
+        try:
+            extractor = KaggleExtractor()
+            result = extractor.extract()
+            results.append({'status': 'success', **result})
+            if result.get('skipped'):
+                click.echo(f"  [SKIP] Kaggle: already downloaded ({result.get('file_size_mb', 0):.1f} MB)")
+            else:
+                click.echo(f"  [OK] Kaggle: {result.get('file_size_mb', 0):.1f} MB saved")
+        except Exception as e:
+            click.echo(f"  [FAIL] Kaggle: {e}")
+            results.append({'status': 'failed', 'error': str(e)})
 
     overall = 'success' if all(r.get('status') == 'success' for r in results) else 'partial'
     click.echo(f"\nMusic extraction {overall}.")
@@ -437,19 +452,68 @@ def music_load(create_tables, create_indexes):
     click.echo("\nMusic data loaded successfully!")
 
 
+@music.command('enrich')
+def music_enrich():
+    """Match processed billboard tracks against Spotify audio features dataset."""
+    click.echo("Starting audio feature enrichment...")
+
+    from src.transform.audio_enricher import AudioEnricher
+    from src.config import config
+
+    processed_path = config.processed_data_path
+    billboard_files = sorted(processed_path.glob('*billboard*'))
+    if not billboard_files:
+        raise click.ClickException(
+            "No processed billboard files found. Run 'music transform' first."
+        )
+
+    enricher = AudioEnricher()
+    result = enricher.run(billboard_files)
+    icon = "[OK]" if result['status'] == 'success' else "[FAIL]"
+    click.echo(
+        f"  {icon} audio_enricher: "
+        f"{result.get('total_input_rows', 0):,} -> {result.get('total_output_rows', 0):,} rows "
+        f"({result['status']})"
+    )
+
+    if result['status'] != 'success':
+        raise click.ClickException(f"Enrichment failed: {result.get('error')}")
+
+    click.echo("\nAudio enrichment complete.")
+
+
+@music.command('export')
+def music_export():
+    """Build the final wide CSV (billboard + Last.fm + audio features) for Kaggle upload."""
+    click.echo("Building final dataset...")
+
+    from src.transform.audio_enricher import AudioEnricher
+
+    enricher = AudioEnricher()
+    final = enricher.build_final_dataset()
+    click.echo(f"  [OK] {len(final):,} rows, {len(final.columns)} columns")
+    click.echo("\nExport complete.")
+
+
 @music.command('run')
 @click.option(
     '--source',
-    type=click.Choice(['all', 'billboard', 'lastfm'], case_sensitive=False),
+    type=click.Choice(['all', 'billboard', 'lastfm', 'kaggle'], case_sensitive=False),
     default='all',
 )
-def music_run(source):
-    """Run the complete music ETL pipeline (extract -> transform -> load)."""
+@click.option('--skip-enrich', is_flag=True, help='Skip audio enrichment step.')
+@click.option('--skip-export', is_flag=True, help='Skip final dataset export.')
+def music_run(source, skip_enrich, skip_export):
+    """Run the complete music ETL pipeline (extract -> transform -> enrich -> export -> load)."""
     click.echo("Running complete music ETL pipeline...")
 
     ctx = click.get_current_context()
     ctx.invoke(music_extract, source=source)
     ctx.invoke(music_transform)
+    if not skip_enrich:
+        ctx.invoke(music_enrich)
+    if not skip_export:
+        ctx.invoke(music_export)
     ctx.invoke(music_load, create_tables=True, create_indexes=True)
 
     click.echo("\nMusic ETL pipeline complete.")

@@ -33,9 +33,14 @@ class MusicDataLoader:
         processed = self._prepare_artists(df)
         return self.sql_loader.load_data(processed, 'artists', if_exists=if_exists, index=False)
 
-    def load_tracks(self, df: pd.DataFrame, if_exists: str = 'replace') -> Dict[str, Any]:
+    def load_tracks(
+        self,
+        df: pd.DataFrame,
+        enriched_df: Optional[pd.DataFrame] = None,
+        if_exists: str = 'replace',
+    ) -> Dict[str, Any]:
         self.logger.info("Loading tracks")
-        processed = self._prepare_tracks(df)
+        processed = self._prepare_tracks(df, enriched_df)
         return self.sql_loader.load_data(processed, 'tracks', if_exists=if_exists, index=False)
 
     def load_chart_entries(self, df: pd.DataFrame, if_exists: str = 'replace') -> Dict[str, Any]:
@@ -70,12 +75,32 @@ class MusicDataLoader:
         artists['lastfm_mbid'] = None
         return self._select_schema_columns('artists', artists)
 
-    def _prepare_tracks(self, lastfm_df: pd.DataFrame) -> pd.DataFrame:
-        """Prepare track records from cleaned Last.fm data."""
+    def _prepare_tracks(
+        self,
+        lastfm_df: pd.DataFrame,
+        enriched_df: Optional[pd.DataFrame] = None,
+    ) -> pd.DataFrame:
+        """Prepare track records from Last.fm data, optionally merging audio features."""
         df = lastfm_df.copy()
-        # Rename 'artist' → 'artist_name' to match schema
         if 'artist' in df.columns and 'artist_name' not in df.columns:
             df = df.rename(columns={'artist': 'artist_name'})
+
+        if enriched_df is not None:
+            _AUDIO_COLS = [
+                'valence', 'energy', 'danceability', 'acousticness',
+                'instrumentalness', 'liveness', 'speechiness',
+                'loudness', 'tempo', 'key', 'mode', 'time_signature',
+                'explicit', 'audio_match_type', 'audio_match_score',
+            ]
+            audio_cols_present = [c for c in _AUDIO_COLS if c in enriched_df.columns]
+            artist_col = 'artist_main' if 'artist_main' in enriched_df.columns else 'artist'
+            audio_df = (
+                enriched_df[['title', artist_col] + audio_cols_present]
+                .rename(columns={artist_col: 'artist_name'})
+                .drop_duplicates(subset=['title', 'artist_name'])
+            )
+            df = df.merge(audio_df, on=['title', 'artist_name'], how='left')
+
         df = df.drop_duplicates(subset=['title', 'artist_name'])
         return self._select_schema_columns('tracks', df)
 
@@ -199,15 +224,22 @@ class MusicLoaderOrchestrator:
     def _discover_data_files(self) -> Dict[str, Optional[Path]]:
         """Map table names to processed CSV file paths."""
         files: Dict[str, Optional[Path]] = {t: None for t in MUSIC_TABLE_ORDER}
+        files['audio_enriched'] = None  # extra key for audio feature merge
 
         if not self.processed_data_path.exists():
             return files
 
         for fp in self.processed_data_path.glob("*.csv"):
             stem = fp.stem.lower()
-            if 'billboard' in stem:
+            if 'enriched' in stem:
+                files['audio_enriched'] = fp
+                # Also use as the chart_entries source (enriched billboard = billboard + audio cols)
                 files['chart_entries'] = fp
-                # Artists are derived from the same billboard file
+                if files['artists'] is None:
+                    files['artists'] = fp
+            elif 'billboard' in stem:
+                if files['chart_entries'] is None:
+                    files['chart_entries'] = fp
                 if files['artists'] is None:
                     files['artists'] = fp
             elif 'lastfm' in stem:
@@ -275,7 +307,8 @@ class MusicLoaderOrchestrator:
                 if table == 'artists':
                     result = self.data_loader.load_artists(df)
                 elif table == 'tracks':
-                    result = self.data_loader.load_tracks(df)
+                    enriched_df = _read(data_files.get('audio_enriched'))
+                    result = self.data_loader.load_tracks(df, enriched_df=enriched_df)
                 elif table == 'chart_entries':
                     result = self.data_loader.load_chart_entries(df)
                 elif table == 'track_tags':
