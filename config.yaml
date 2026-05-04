@@ -1,8 +1,8 @@
 # COVID-19 ETL Pipeline Configuration
 project:
-  name: "COVID-19 Global Data ETL Pipeline"
+  name: "Python ETL Pipeline Framework"
   version: "1.0.0"
-  description: "ETL pipeline for COVID-19 data analysis and prediction"
+  description: "Modular ETL pipeline framework supporting COVID-19 and music data pipelines"
 
 # Data Sources
 data_sources:

@@ -268,22 +268,24 @@ def load(input_dir, create_tables, create_indexes, create_constraints, data_file
 @click.option('--skip-transform', is_flag=True, help='Skip transformation phase')
 @click.option('--skip-load', is_flag=True, help='Skip loading phase')
 def run(skip_extract, skip_transform, skip_load):
-    """Run the complete ETL pipeline."""
+    """Run the complete COVID-19 ETL pipeline (extract -> transform -> load)."""
     click.echo("Starting complete ETL pipeline...")
 
+    ctx = click.get_current_context()
+
     if not skip_extract:
-        click.echo("Phase 1: Extraction")
-        # TODO: Run extract
+        click.echo("\nPhase 1: Extraction")
+        ctx.invoke(extract)
 
     if not skip_transform:
-        click.echo("Phase 2: Transformation")
-        # TODO: Run transform
+        click.echo("\nPhase 2: Transformation")
+        ctx.invoke(transform)
 
     if not skip_load:
-        click.echo("Phase 3: Loading")
-        # TODO: Run load
+        click.echo("\nPhase 3: Loading")
+        ctx.invoke(load)
 
-    click.echo("ETL pipeline completed successfully!")
+    click.echo("\nETL pipeline completed successfully!")
 
 
 @cli.command()
