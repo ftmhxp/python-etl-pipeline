@@ -6,6 +6,7 @@ import os
 import yaml
 from typing import Dict, Any
 from pathlib import Path
+from dotenv import load_dotenv
 
 
 class Config:
@@ -18,6 +19,9 @@ class Config:
 
     def _load_config(self) -> Dict[str, Any]:
         """Load configuration from YAML file."""
+        # Load .env before substituting ${VAR} placeholders in config.yaml
+        load_dotenv()
+
         if not self.config_file.exists():
             raise FileNotFoundError(f"Configuration file not found: {self.config_file}")
 

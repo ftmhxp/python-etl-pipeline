@@ -60,6 +60,22 @@ MUSIC_SCHEMA = {
             "type": "DECIMAL(6,2)",
             "nullable": True,
         },
+        # Spotify audio features (from Kaggle dataset via fuzzy match)
+        "valence": {"type": "DECIMAL(5,4)", "nullable": True},
+        "energy": {"type": "DECIMAL(5,4)", "nullable": True},
+        "danceability": {"type": "DECIMAL(5,4)", "nullable": True},
+        "acousticness": {"type": "DECIMAL(5,4)", "nullable": True},
+        "instrumentalness": {"type": "DECIMAL(5,4)", "nullable": True},
+        "liveness": {"type": "DECIMAL(5,4)", "nullable": True},
+        "speechiness": {"type": "DECIMAL(5,4)", "nullable": True},
+        "loudness": {"type": "DECIMAL(6,2)", "nullable": True},
+        "tempo": {"type": "DECIMAL(7,3)", "nullable": True},
+        "key": {"type": "SMALLINT", "nullable": True},
+        "mode": {"type": "SMALLINT", "nullable": True},
+        "time_signature": {"type": "SMALLINT", "nullable": True},
+        "explicit": {"type": "BOOLEAN", "nullable": True},
+        "audio_match_type": {"type": "TEXT", "nullable": True},
+        "audio_match_score": {"type": "SMALLINT", "nullable": True},
     },
 
     "chart_entries": {
