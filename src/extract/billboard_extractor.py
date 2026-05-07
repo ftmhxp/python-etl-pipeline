@@ -22,6 +22,7 @@ class BillboardExtractor(BaseExtractor):
         self.end_date = self.source_config.get('end_date', '2025-01-01')
         self.sleep_seconds = self.source_config.get('sleep_seconds', 1.5)
         self.output_file = self.source_config.get('output_file', 'billboard_hot100.csv')
+        self.resume = self.source_config.get('resume', False)
 
     def _get_chart_dates(self) -> List[str]:
         """Generate one date per week (Saturdays) from start to end."""
@@ -47,6 +48,12 @@ class BillboardExtractor(BaseExtractor):
 
         rows = []
         failed_weeks = []
+        output_path = self.raw_data_path / self.output_file
+        total_saved = 0
+
+        if not self.resume and output_path.exists():
+            output_path.unlink()
+            self.logger.info("Fresh run: cleared existing output file")
 
         for i, date in enumerate(dates):
             try:
@@ -64,7 +71,11 @@ class BillboardExtractor(BaseExtractor):
                     })
 
                 if (i + 1) % 50 == 0:
-                    self.logger.info(f"Progress: {i + 1}/{len(dates)} weeks fetched")
+                    chunk = pd.DataFrame(rows)
+                    chunk.to_csv(output_path, mode='a', header=not output_path.exists() or total_saved == 0, index=False)
+                    total_saved += len(rows)
+                    rows = []
+                    self.logger.info(f"Progress: {i + 1}/{len(dates)} weeks fetched, {total_saved:,} entries saved")
 
                 time.sleep(self.sleep_seconds)
 
@@ -73,14 +84,17 @@ class BillboardExtractor(BaseExtractor):
                 failed_weeks.append(date)
                 time.sleep(self.retry_delay)
 
-        df = pd.DataFrame(rows)
+        # flush any remaining rows
+        if rows:
+            chunk = pd.DataFrame(rows)
+            chunk.to_csv(output_path, mode='a', header=not output_path.exists() or total_saved == 0, index=False)
+            total_saved += len(rows)
 
-        if df.empty:
+        if total_saved == 0:
             raise RuntimeError("No Billboard data extracted — all weeks failed.")
 
-        output_path = self.raw_data_path / self.output_file
-        df.to_csv(output_path, index=False)
-        self.logger.info(f"Saved {len(df):,} chart entries to {output_path}")
+        self.logger.info(f"Saved {total_saved:,} chart entries to {output_path}")
+        df = pd.read_csv(output_path)
 
         return {
             'total_weeks_attempted': len(dates),

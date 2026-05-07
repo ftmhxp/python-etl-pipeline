@@ -39,8 +39,9 @@ data_sources:
     chart_name: "hot-100"
     start_date: "2015-01-01"
     end_date: "2025-01-01"
-    sleep_seconds: 1.5
+    sleep_seconds: 0.5
     output_file: "billboard_hot100.csv"
+    resume: false
 
   # Last.fm API
   lastfm:
