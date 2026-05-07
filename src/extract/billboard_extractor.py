@@ -22,7 +22,7 @@ class BillboardExtractor(BaseExtractor):
         self.end_date = self.source_config.get('end_date', '2025-01-01')
         self.sleep_seconds = self.source_config.get('sleep_seconds', 1.5)
         self.output_file = self.source_config.get('output_file', 'billboard_hot100.csv')
-        self.resume = self.source_config.get('resume', False)
+        self.resume = self.source_config.get('resume', True)
 
     def _get_chart_dates(self) -> List[str]:
         """Generate one date per week (Saturdays) from start to end."""

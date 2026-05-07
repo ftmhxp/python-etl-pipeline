@@ -41,7 +41,7 @@ data_sources:
     end_date: "2025-01-01"
     sleep_seconds: 0.5
     output_file: "billboard_hot100.csv"
-    resume: false
+    resume: true
 
   # Last.fm API
   lastfm:
